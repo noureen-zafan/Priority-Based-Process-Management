@@ -195,8 +195,9 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
-
-
+        $U/_myprogram\
+        $U/_c_file\
+        $U/_lab5\
 
 ifeq ($(LAB),util)
 UPROGS += \
