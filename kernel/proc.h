@@ -91,7 +91,8 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
-  int priority; // 0=highest, 3=lowest. Default=2 int wait_ticks; // Ticks waited while RUNNABLE (aging)
+  int priority; // 0=highest, 3=lowest. Default=2
+  int wait_ticks; // Ticks waited while RUNNABLE (aging)
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
