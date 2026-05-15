@@ -103,5 +103,20 @@ sys_uptime(void)
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);
-  return xticks;
+  return xticks; 
 }
+
+
+uint64 // FIX error 
+sys_setpriority(void)
+{
+ int priority;
+ argint(0, &priority); // Read arg from user 
+ if(priority < 0 || priority > 3)
+   return -1; // Reject invalid values
+  struct proc *p = myproc();
+  acquire(&p->lock);
+  p->priority = priority;
+  release(&p->lock);
+   return 0;
+ }
