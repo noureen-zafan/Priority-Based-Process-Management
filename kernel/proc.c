@@ -124,7 +124,8 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-  p->priority = 2; // Default: medium priority p->wait_ticks = 0; // No waiting time yet
+  p->priority = 2; // Default: medium priority
+  p->wait_ticks = 0; // No waiting time yet
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -423,47 +424,46 @@ void
 scheduler(void)
 {
   struct proc *p;
-  struct cpu *c = mycpu();
-
+  struct proc *chosen;
+  struct cpu  *c = mycpu();
   c->proc = 0;
+
   for(;;){
-    // The most recent process to run may have had interrupts
-    // turned off; enable them to avoid a deadlock if all
-    // processes are waiting. Then turn them back off
-    // to avoid a possible race between an interrupt
-    // and wfi.
+    // Enable interrupts to avoid deadlock with devices
     intr_on();
-    intr_off();
+    chosen = 0;
 
-    int found = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
+    // Pass 1: scan all processes, keep the highest-priority RUNNABLE one
+    for(p = proc; p < &proc[NPROC]; p++){
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+      if(p->state == RUNNABLE){
+        if(chosen == 0 ||
+           p->priority < chosen->priority ||
+           (p->priority == chosen->priority && p->pid < chosen->pid))
+        {
+          if(chosen != 0) release(&chosen->lock);
+          chosen = p;
+          continue;  // keep chosen's lock held, skip the release below
+        }
       }
       release(&p->lock);
     }
-    if(found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
-      asm volatile("wfi");
+
+    // Pass 2: run the winner
+    if(chosen != 0){
+      chosen->state      = RUNNING;
+      chosen->wait_ticks = 0;      // reset aging counter for Member 3
+      c->proc            = chosen;
+      swtch(&c->context, &chosen->context);
+      c->proc = 0;
+      release(&chosen->lock);
     }
   }
 }
-
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
-// kernel thread, not this CPU. It should
+// kernel thread, not this CPU. It shoul
 // be proc->intena and proc->noff, but that would
 // break in the few places where a lock is held but
 // there's no process.
